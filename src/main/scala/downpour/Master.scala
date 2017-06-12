@@ -40,6 +40,7 @@ class Master extends Actor {
     miniBatchSize,
     1,
     dimensions.length,
+    30,
     parameterServer,
     evaluator
   )))

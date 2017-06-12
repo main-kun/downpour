@@ -1,9 +1,11 @@
 package downpour
 
+import java.io.File
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import breeze.linalg.argmax
 import breeze.numerics.sigmoid
-import downpour.Evaluator.EvaluateModel
+import downpour.Evaluator.{Done, EvaluateModel, StartTimer}
 import downpour.Types._
 
 import scala.concurrent.duration._
@@ -14,10 +16,15 @@ import downpour.ParameterServer.FetchParameters
 
 object Evaluator {
   case class EvaluateModel()
+  case class StartTimer()
+  case class Done()
 }
 
 class Evaluator(testData: TrainingTupleVector,
                 parameterServer: ActorRef) extends Actor with ActorLogging {
+
+  var startTime: Long = 0
+  var results =  Seq.empty[(Int, Long)]
 
   def feedForward(input: TrainingExample,
                   biases: BiasSeq,
@@ -27,7 +34,7 @@ class Evaluator(testData: TrainingTupleVector,
     }
   }
 
-  def evaluate(biases: BiasSeq, weights: WeightSeq): Int = {
+  def evaluate(biases: BiasSeq, weights: WeightSeq): (Int, Long) = {
     val testResults = testData.map {
       case (x, y) =>
         val output = feedForward(x, biases, weights)
@@ -35,7 +42,13 @@ class Evaluator(testData: TrainingTupleVector,
         val maxTarget = argmax(y)
         if (maxTarget == maxOutput) 1 else 0
     }
-    testResults.sum
+    val epochTime = System.nanoTime()
+    (testResults.sum, epochTime - startTime)
+  }
+
+  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
+    val p = new java.io.PrintWriter(f)
+    try { op(p) } finally { p.close() }
   }
 
   def receive = {
@@ -44,8 +57,19 @@ class Evaluator(testData: TrainingTupleVector,
       val parameterFuture = parameterServer ? FetchParameters
       val parameterTuple = Await.result(parameterFuture, timeout.duration).asInstanceOf[ParameterTuple]
       val (biases, weights) = parameterTuple
-      val result = evaluate(biases, weights)
-      log.info(s"EVALUATION $result / ${testData.length}")
+      val resultTuple = evaluate(biases, weights)
+      results = results :+ resultTuple
+      log.info(s"EVALUATION ${resultTuple._1} / ${testData.length}")
+
+    case StartTimer =>
+      startTime = System.nanoTime()
+
+    case Done =>
+      log.info("Evaluator writing results")
+      printToFile(new File("./output.csv")) { p =>
+        results.foreach(tuple => p.println(tuple.productIterator.mkString(",")))
+      }
+
   }
 
 }

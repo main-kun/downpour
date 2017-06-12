@@ -11,3 +11,4 @@ project/target
 .history
 .cache
 .lib/
+output.csv
