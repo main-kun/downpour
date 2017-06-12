@@ -10,9 +10,16 @@ object Master {
 
 class Master extends Actor {
   val mnist: MnistDataset = Mnist.trainDataset
-  val trainImages: TrainingVector = mnist.imagesAsVectors.take(100).toVector
-  val trainLabels: TrainingVector = mnist.labelsAsVectors.take(100).toVector
+  val mnistTest = Mnist.testDataset
+
+  val trainImages: TrainingVector = mnist.imagesAsVectors.take(50000).toVector
+  val trainLabels: TrainingVector = mnist.labelsAsVectors.take(50000).toVector
+  val testImages: TrainingVector = mnistTest.imagesAsVectors.take(10000).toVector
+  val testLabels: TrainingVector = mnistTest.labelsAsVectors.take(10000).toVector
+
   val zippedTrain: TrainingTupleVector = trainImages.zip(trainLabels)
+  val zippedTest:TrainingTupleVector = testImages.zip(testLabels)
+
 
   val miniBatchSize = 10
   val learningRate = 3.0
@@ -24,13 +31,19 @@ class Master extends Actor {
     miniBatchSize = miniBatchSize
   )))
 
+  val evaluator: ActorRef = context.actorOf(Props(
+    new Evaluator(zippedTest, parameterServer)
+  ))
+
   val dataShard: ActorRef = context.actorOf(Props(new DataShard(
     zippedTrain,
     miniBatchSize,
     1,
     dimensions.length,
-    parameterServer
+    parameterServer,
+    evaluator
   )))
+
 
   def receive = {
     case Done =>

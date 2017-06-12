@@ -23,12 +23,12 @@ class ParameterServer(dimensions: Seq[Int],
 
   def receive = {
     case FetchParameters =>
-      log.info("SENDING PARAMETERS")
+//      log.info("SENDING PARAMETERS")
       context.sender() ! (biases, weights)
 
 
     case PushGradient(nablaTuple: ParameterTuple) =>
-      log.info("GOT NABLAS BABY")
+//      log.info("GOT NABLAS BABY")
       val (nablaB, nablaW) = nablaTuple
       weights = weights.zip(nablaW).map {
         case (w, nw) =>

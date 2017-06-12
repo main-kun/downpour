@@ -6,7 +6,6 @@ import breeze.numerics.sigmoid
 import downpour.ParameterServer.{FetchParameters, PushGradient}
 import downpour.Replica.{GetMiniBatch, GetParameters}
 import downpour.Types.{ParameterTuple, TrainingExample, TrainingTupleVector}
-
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import akka.pattern.ask
@@ -75,7 +74,7 @@ class Replica(parameterServer: ActorRef,
     (nablaB, nablaW)
   }
 
-  log.info("REQUESTING NEW BATCH")
+//  log.info("REQUESTING NEW BATCH")
   context.parent ! FetchNewBatch
 
   def receive = {
@@ -85,7 +84,7 @@ class Replica(parameterServer: ActorRef,
       val parametersFuture = parameterServer ? FetchParameters
       val parameters = Await.result(parametersFuture, timeout.duration).asInstanceOf[ParameterTuple]
       val nablaTuple = processMiniBatch(batch, parameters)
-      log.info("PUSHING GRADIENTS")
+//      log.info("PUSHING GRADIENTS")
       parameterServer ! PushGradient(nablaTuple)
       context.parent ! FetchNewBatch
 
