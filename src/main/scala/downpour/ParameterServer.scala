@@ -6,6 +6,15 @@ import breeze.stats.distributions.Gaussian
 import downpour.ParameterServer.{FetchParameters, PushGradient}
 import downpour.Types.{BiasSeq, ParameterTuple, WeightSeq}
 
+/**
+  * ParameterServer - Actor holding the net parameters and updating them with gradients
+  *
+  * @constructor Create a ParameterServer instance
+  *
+  * @param dimensions Dimensions of the network
+  * @param learningRate Learing rate of gradient descent
+  * @param miniBatchSize Size of mini batch
+  */
 object ParameterServer {
   case class FetchParameters()
   case class PushGradient(nablaTuple: ParameterTuple)

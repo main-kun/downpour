@@ -14,6 +14,16 @@ import akka.pattern.ask
 import akka.util.Timeout
 import downpour.ParameterServer.FetchParameters
 
+/**
+  * Evaluator - Actor evaluating the model
+  *
+  * @constructor Create Evaluator instance
+  *
+  * @param testData Vector of testing objects
+  * @param parameterServer Actor ref of ParameterServer
+  * @parallelFactor Number of Replicas in system
+  */
+
 object Evaluator {
   case class EvaluateModel()
   case class StartTimer()

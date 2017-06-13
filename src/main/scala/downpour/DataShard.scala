@@ -9,6 +9,20 @@ import downpour.Types.TrainingTupleVector
 import scala.collection.immutable.IndexedSeq
 import scala.util.Random
 
+/**
+  * DataShard - Actor that contains  training data and produces mini batches. Creates Replica actors
+  *
+  * @constructor Create a DataShard Actor
+  *
+  * @param trainingData Training dataset
+  * @param miniBatchSize Size of the mini-batch
+  * @param replicaId Unique ID for this replica
+  * @param numLayers Number of layers in replica
+  * @param numEpoch Number of epochs to compute
+  * @param parameterServer ActorRef of ParameterServer
+  * @param evaluator ActorRef of Evaluator
+ */
+
 object DataShard {
   case object FetchNewBatch
 }
@@ -41,13 +55,10 @@ class DataShard(trainingData: TrainingTupleVector,
 
   def receive = {
     case FetchNewBatch =>
-//      log.info("BATCH REQUESTED")
       if (batchesIterator.hasNext) {
-//        log.info("SENDING THE DATA")
         replica ! GetMiniBatch(batchesIterator.next())
 
         if(!batchesIterator.hasNext) {
-//          log.info(s"datashard $replicaId epoch $epochCounter done")
           if (epochCounter == numEpoch) {
             log.info(s"Datashard $replicaId done")
             context.stop(replica)

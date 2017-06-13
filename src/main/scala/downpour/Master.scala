@@ -7,6 +7,13 @@ import downpour.Types.{ParameterTuple, TrainingTupleVector, TrainingVector}
 
 import scala.collection.immutable.IndexedSeq
 
+/**
+  * Master - Actor creating the system for Downpour SGD. Master prepares MNIST data,
+  * sets miniBatchSize, learningRate, network dimensions, and number of replicas
+  *
+  * @constructor Create Master actor and subsequently the whole actor system
+  */
+
 object Master {
   case class Done()
 }
@@ -27,7 +34,7 @@ class Master extends Actor {
   val miniBatchSize = 10
   val learningRate = 3.0
   val dimensions = Seq(784, 30, 10)
-  val parallelFactor = 4
+  val parallelFactor = 2
   val numDataPerShard: Int = zippedTrain.length / parallelFactor
   val dataByShard: IndexedSeq[TrainingTupleVector] = (zippedTrain.indices by numDataPerShard).map {
     k => zippedTrain.slice(k, k + numDataPerShard)

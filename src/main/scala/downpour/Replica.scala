@@ -13,7 +13,14 @@ import akka.util.Timeout
 import downpour.DataShard.FetchNewBatch
 
 
-
+/**
+  * Replica - implements gradient descent for mini batches
+  *
+  * @constructor Create a Replica instance.
+  * @param parameterServer ActorRef of ParameterServer
+  * @param numLayers Number of layers in Replica
+  *
+  */
 object Replica {
   case class GetParameters(parameters: ParameterTuple)
   case class GetMiniBatch(miniBatch: TrainingTupleVector)
@@ -22,7 +29,8 @@ object Replica {
 class Replica(parameterServer: ActorRef,
               numLayers: Int) extends Actor with ActorLogging {
 
-  def processMiniBatch(miniBatch: TrainingTupleVector, parameters: ParameterTuple) : ParameterTuple = {
+  def processMiniBatch(miniBatch: TrainingTupleVector,
+                       parameters: ParameterTuple) : ParameterTuple = {
     val (biases, weights) = parameters
     var nablaB = biases.map {b => DenseVector.zeros[Double](b.length)}
     var nablaW = weights.map {w => DenseMatrix.zeros[Double](w.rows, w.cols)}
@@ -39,11 +47,14 @@ class Replica(parameterServer: ActorRef,
     (nablaB, nablaW)
   }
 
-  def costDerivative(outputActivations:TrainingExample, y: TrainingExample): TrainingExample = {
+  def costDerivative(outputActivations:TrainingExample,
+                     y: TrainingExample): TrainingExample = {
     outputActivations - y
   }
 
-  def backpropagation(x: TrainingExample, y: TrainingExample, parameters: ParameterTuple) : ParameterTuple = {
+  def backpropagation(x: TrainingExample,
+                      y: TrainingExample,
+                      parameters: ParameterTuple) : ParameterTuple = {
     val (biases, weights) = parameters
     var nablaB = biases.map {b => DenseVector.zeros[Double](b.length)}
     var nablaW = weights.map {w => DenseMatrix.zeros[Double](w.rows, w.cols)}
@@ -74,7 +85,6 @@ class Replica(parameterServer: ActorRef,
     (nablaB, nablaW)
   }
 
-//  log.info("REQUESTING NEW BATCH")
   context.parent ! FetchNewBatch
 
   def receive = {
@@ -84,7 +94,6 @@ class Replica(parameterServer: ActorRef,
       val parametersFuture = parameterServer ? FetchParameters
       val parameters = Await.result(parametersFuture, timeout.duration).asInstanceOf[ParameterTuple]
       val nablaTuple = processMiniBatch(batch, parameters)
-//      log.info("PUSHING GRADIENTS")
       parameterServer ! PushGradient(nablaTuple)
       context.parent ! FetchNewBatch
 
