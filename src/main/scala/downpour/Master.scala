@@ -1,8 +1,11 @@
 package downpour
 
 import akka.actor.{Actor, ActorRef, Props}
+import breeze.linalg.DenseVector
 import downpour.Master.Done
 import downpour.Types.{ParameterTuple, TrainingTupleVector, TrainingVector}
+
+import scala.collection.immutable.IndexedSeq
 
 object Master {
   case class Done()
@@ -10,7 +13,7 @@ object Master {
 
 class Master extends Actor {
   val mnist: MnistDataset = Mnist.trainDataset
-  val mnistTest = Mnist.testDataset
+  val mnistTest: MnistDataset = Mnist.testDataset
 
   val trainImages: TrainingVector = mnist.imagesAsVectors.take(50000).toVector
   val trainLabels: TrainingVector = mnist.labelsAsVectors.take(50000).toVector
@@ -18,12 +21,17 @@ class Master extends Actor {
   val testLabels: TrainingVector = mnistTest.labelsAsVectors.take(10000).toVector
 
   val zippedTrain: TrainingTupleVector = trainImages.zip(trainLabels)
-  val zippedTest:TrainingTupleVector = testImages.zip(testLabels)
+  val zippedTest: TrainingTupleVector = testImages.zip(testLabels)
 
 
   val miniBatchSize = 10
   val learningRate = 3.0
   val dimensions = Seq(784, 30, 10)
+  val parallelFactor = 4
+  val numDataPerShard: Int = zippedTrain.length / parallelFactor
+  val dataByShard: IndexedSeq[TrainingTupleVector] = (zippedTrain.indices by numDataPerShard).map {
+    k => zippedTrain.slice(k, k + numDataPerShard)
+  }
 
   val parameterServer: ActorRef = context.actorOf(Props(new ParameterServer(
     dimensions = dimensions,
@@ -32,18 +40,20 @@ class Master extends Actor {
   )))
 
   val evaluator: ActorRef = context.actorOf(Props(
-    new Evaluator(zippedTest, parameterServer)
+    new Evaluator(zippedTest, parameterServer, parallelFactor)
   ))
 
-  val dataShard: ActorRef = context.actorOf(Props(new DataShard(
-    zippedTrain,
-    miniBatchSize,
-    1,
-    dimensions.length,
-    30,
-    parameterServer,
-    evaluator
-  )))
+  var dataShards: IndexedSeq[ActorRef] = (0 until parallelFactor).map { i =>
+    context.actorOf(Props(new DataShard(
+      dataByShard(i),
+      miniBatchSize,
+      i,
+      dimensions.length,
+      30,
+      parameterServer,
+      evaluator
+    )))
+  }
 
 
   def receive = {
@@ -52,16 +62,4 @@ class Master extends Actor {
   }
 
 
-//  parameterServer ! FetchParameters
-//
-//  def receive = {
-//    case GetBatch(batch) =>
-//      println("GOT BATCH")
-//      println(batch.length)
-//
-//    case GetParameters(parameters) =>
-//      println("GOT PARAMETERS")
-//      println(parameters._1)
-//      context.sender() ! PushGradient(parameters)
-//  }
 }

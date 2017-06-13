@@ -36,6 +36,7 @@ class DataShard(trainingData: TrainingTupleVector,
 
   generateMiniBatches()
   evaluator ! StartTimer
+  log.info(s"Initiated ${replicaId} datashard")
   val replica: ActorRef = context.actorOf(Props(new Replica(parameterServer, numLayers)))
 
   def receive = {
@@ -46,7 +47,7 @@ class DataShard(trainingData: TrainingTupleVector,
         replica ! GetMiniBatch(batchesIterator.next())
 
         if(!batchesIterator.hasNext) {
-          log.info(s"EPOCH $epochCounter DONE")
+//          log.info(s"datashard $replicaId epoch $epochCounter done")
           if (epochCounter == numEpoch) {
             log.info(s"Datashard $replicaId done")
             context.stop(replica)

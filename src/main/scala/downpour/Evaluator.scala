@@ -21,10 +21,12 @@ object Evaluator {
 }
 
 class Evaluator(testData: TrainingTupleVector,
-                parameterServer: ActorRef) extends Actor with ActorLogging {
+                parameterServer: ActorRef,
+                parallelFactor: Int) extends Actor with ActorLogging {
 
   var startTime: Long = 0
   var results =  Seq.empty[(Int, Long)]
+  var counter: Int = 0
 
   def feedForward(input: TrainingExample,
                   biases: BiasSeq,
@@ -53,13 +55,18 @@ class Evaluator(testData: TrainingTupleVector,
 
   def receive = {
     case EvaluateModel =>
-      implicit val timeout = Timeout(5 seconds)
-      val parameterFuture = parameterServer ? FetchParameters
-      val parameterTuple = Await.result(parameterFuture, timeout.duration).asInstanceOf[ParameterTuple]
-      val (biases, weights) = parameterTuple
-      val resultTuple = evaluate(biases, weights)
-      results = results :+ resultTuple
-      log.info(s"EVALUATION ${resultTuple._1} / ${testData.length}")
+      if (counter != 0 && counter % parallelFactor == 0) {
+        implicit val timeout = Timeout(5 seconds)
+        val parameterFuture = parameterServer ? FetchParameters
+        val parameterTuple = Await.result(parameterFuture, timeout.duration).asInstanceOf[ParameterTuple]
+        val (biases, weights) = parameterTuple
+        val resultTuple = evaluate(biases, weights)
+        results = results :+ resultTuple
+        counter = counter + 1
+        log.info(s"EVALUATION ${resultTuple._1} / ${testData.length}")
+      } else {
+        counter = counter + 1
+      }
 
     case StartTimer =>
       startTime = System.nanoTime()
