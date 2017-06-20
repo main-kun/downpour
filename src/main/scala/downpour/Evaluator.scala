@@ -5,13 +5,14 @@ import java.io.File
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import breeze.linalg.argmax
 import breeze.numerics.sigmoid
-import downpour.Evaluator.{Done, EvaluateModel, StartTimer}
+import downpour.Evaluator.{EvaluateModel, EvaluatorDone, StartTimer}
 import downpour.Types._
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import akka.pattern.ask
 import akka.util.Timeout
+import downpour.Master.MasterDone
 import downpour.ParameterServer.FetchParameters
 
 /**
@@ -27,7 +28,7 @@ import downpour.ParameterServer.FetchParameters
 object Evaluator {
   case class EvaluateModel()
   case class StartTimer()
-  case class Done()
+  case class EvaluatorDone()
 }
 
 class Evaluator(testData: TrainingTupleVector,
@@ -37,6 +38,7 @@ class Evaluator(testData: TrainingTupleVector,
   var startTime: Long = 0
   var results =  Seq.empty[(Int, Long)]
   var counter: Int = 0
+  var doneCounter: Int = 0
 
   def feedForward(input: TrainingExample,
                   biases: BiasSeq,
@@ -81,10 +83,17 @@ class Evaluator(testData: TrainingTupleVector,
     case StartTimer =>
       startTime = System.nanoTime()
 
-    case Done =>
-      log.info("Evaluator writing results")
-      printToFile(new File("./output.csv")) { p =>
-        results.foreach(tuple => p.println(tuple.productIterator.mkString(",")))
+    case EvaluatorDone =>
+      if (doneCounter + 1 == parallelFactor) {
+        log.info("Evaluator writing results")
+        val outputFile = new File("/tmp/netoutput/output.csv")
+        outputFile.createNewFile()
+        printToFile(outputFile) { p =>
+          results.foreach(tuple => p.println(tuple.productIterator.mkString(",")))
+        }
+        context.parent ! MasterDone
+      } else {
+        doneCounter = doneCounter + 1
       }
 
   }

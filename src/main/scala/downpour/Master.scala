@@ -1,8 +1,8 @@
 package downpour
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import breeze.linalg.DenseVector
-import downpour.Master.Done
+import downpour.Master.MasterDone
 import downpour.Types.{ParameterTuple, TrainingTupleVector, TrainingVector}
 
 import scala.collection.immutable.IndexedSeq
@@ -15,10 +15,10 @@ import scala.collection.immutable.IndexedSeq
   */
 
 object Master {
-  case class Done()
+  case class MasterDone()
 }
 
-class Master extends Actor {
+class Master(parallelFactor: Int = 2, numEpochs: Int = 30) extends Actor with ActorLogging {
   val mnist: MnistDataset = Mnist.trainDataset
   val mnistTest: MnistDataset = Mnist.testDataset
 
@@ -34,7 +34,6 @@ class Master extends Actor {
   val miniBatchSize = 10
   val learningRate = 3.0
   val dimensions = Seq(784, 30, 10)
-  val parallelFactor = 2
   val numDataPerShard: Int = zippedTrain.length / parallelFactor
   val dataByShard: IndexedSeq[TrainingTupleVector] = (zippedTrain.indices by numDataPerShard).map {
     k => zippedTrain.slice(k, k + numDataPerShard)
@@ -50,13 +49,15 @@ class Master extends Actor {
     new Evaluator(zippedTest, parameterServer, parallelFactor)
   ))
 
+  log.info(s"Starting $parallelFactor replicas")
+  log.info(s"$numEpochs epochs")
   var dataShards: IndexedSeq[ActorRef] = (0 until parallelFactor).map { i =>
     context.actorOf(Props(new DataShard(
       dataByShard(i),
       miniBatchSize,
       i,
       dimensions.length,
-      30,
+      numEpoch,
       parameterServer,
       evaluator
     )))
@@ -64,8 +65,9 @@ class Master extends Actor {
 
 
   def receive = {
-    case Done =>
-      println("done")
+    case MasterDone =>
+      log.info("Master done")
+      context.system.terminate()
   }
 
 

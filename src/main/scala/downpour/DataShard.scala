@@ -2,7 +2,7 @@ package downpour
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import downpour.DataShard.FetchNewBatch
-import downpour.Evaluator.{Done, EvaluateModel, StartTimer}
+import downpour.Evaluator.{EvaluatorDone, EvaluateModel, StartTimer}
 import downpour.Replica.GetMiniBatch
 import downpour.Types.TrainingTupleVector
 
@@ -50,7 +50,7 @@ class DataShard(trainingData: TrainingTupleVector,
 
   generateMiniBatches()
   evaluator ! StartTimer
-  log.info(s"Initiated ${replicaId} datashard")
+  log.info(s"Initiated $replicaId datashard")
   val replica: ActorRef = context.actorOf(Props(new Replica(parameterServer, numLayers)))
 
   def receive = {
@@ -62,7 +62,8 @@ class DataShard(trainingData: TrainingTupleVector,
           if (epochCounter == numEpoch) {
             log.info(s"Datashard $replicaId done")
             context.stop(replica)
-            evaluator ! Done
+            evaluator ! EvaluateModel
+            evaluator ! EvaluatorDone
           } else {
             epochCounter += 1
             evaluator ! EvaluateModel

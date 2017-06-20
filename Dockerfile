@@ -1,8 +1,7 @@
-FROM picoded/ubuntu-openjdk-8-jdk
+FROM openjdk:8
 
 ADD openblas.conf /etc/ld.so.conf.d/openblas.conf
 ADD build_openblas.sh build_openblas.sh
-ADD . /workspace
 RUN bash build_openblas.sh
 
 ENV SCALA_VERSION 2.11.6
@@ -28,4 +27,7 @@ RUN \
   sbt sbtVersion
 
 # Define working directory
+ADD . /workspace
+
+WORKDIR /workspace
 CMD ["sbt", "run"]
