@@ -30,4 +30,6 @@ RUN \
 ADD . /workspace
 
 WORKDIR /workspace
-CMD ["sbt", "run"]
+
+
+CMD ["sbt", "run", "$PARALLEL_FACTOR"]
