@@ -57,7 +57,7 @@ class Master(parallelFactor: Int = 2, numEpochs: Int = 30) extends Actor with Ac
       miniBatchSize,
       i,
       dimensions.length,
-      numEpoch,
+      numEpochs,
       parameterServer,
       evaluator
     )))
