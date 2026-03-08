@@ -35,7 +35,7 @@ class MnistFileReader(location: String, fileName: String) {
   protected[this] val stream = new DataInputStream(new GZIPInputStream(new FileInputStream(path.toString)))
 
   private def download(): Unit = {
-    val rbc = Channels.newChannel(new URL(s"http://yann.lecun.com/exdb/mnist/$fileName").openStream())
+    val rbc = Channels.newChannel(new URL(s"https://storage.googleapis.com/cvdf-datasets/mnist/$fileName").openStream())
     val fos = new FileOutputStream(s"$location/$fileName")
     fos.getChannel.transferFrom(rbc, 0, Long.MaxValue)
   }
@@ -48,16 +48,16 @@ class MnistLabelReader(location: String, fileName: String) extends MnistFileRead
 
   val count: Int = stream.readInt()
 
-  val labelsAsInts: Stream[Int] = readLabels(0)
-  val labelsAsVectors: Stream[DenseVector[Double]] = labelsAsInts.map { label =>
+  val labelsAsInts: LazyList[Int] = readLabels(0)
+  val labelsAsVectors: LazyList[DenseVector[Double]] = labelsAsInts.map { label =>
     DenseVector.tabulate[Double](10) { i => if (i == label) 1.0 else 0.0 }
   }
 
-  private[this] def readLabels(ind: Int): Stream[Int] =
+  private[this] def readLabels(ind: Int): LazyList[Int] =
     if (ind >= count)
-      Stream.empty
+      LazyList.empty
     else
-      Stream.cons(stream.readByte(), readLabels(ind + 1))
+      stream.readByte() #:: readLabels(ind + 1)
 
 }
 
@@ -69,16 +69,16 @@ class MnistImageReader(location: String, fileName: String) extends MnistFileRead
   val width: Int = stream.readInt()
   val height: Int = stream.readInt()
 
-  val imagesAsMatrices: Stream[DenseMatrix[Int]] = readImages(0)
-  val imagesAsVectors: Stream[DenseVector[Double]] = imagesAsMatrices map { image =>
+  val imagesAsMatrices: LazyList[DenseMatrix[Int]] = readImages(0)
+  val imagesAsVectors: LazyList[DenseVector[Double]] = imagesAsMatrices.map { image =>
     DenseVector.tabulate(width * height) { i => image(i / width, i % height) / 255.0 }
   }
 
-  private[this] def readImages(ind: Int): Stream[DenseMatrix[Int]] =
+  private[this] def readImages(ind: Int): LazyList[DenseMatrix[Int]] =
     if (ind >= count)
-      Stream.empty
+      LazyList.empty
     else
-      Stream.cons(readImage(), readImages(ind + 1))
+      readImage() #:: readImages(ind + 1)
 
   private[this] def readImage(): DenseMatrix[Int] = {
     val m = DenseMatrix.zeros[Int](height, width)
@@ -99,13 +99,13 @@ class MnistDataset(location: String, dataset: String) {
   def imageWidth: Int = imageReader.width
   def imageHeight:Int = imageReader.height
 
-  def imagesAsMatrices:Stream[DenseMatrix[Int]]= imageReader.imagesAsMatrices
-  def imagesAsVectors:Stream[DenseVector[Double]] = imageReader.imagesAsVectors
+  def imagesAsMatrices: LazyList[DenseMatrix[Int]] = imageReader.imagesAsMatrices
+  def imagesAsVectors: LazyList[DenseVector[Double]] = imageReader.imagesAsVectors
 
-  def labelsAsInts: Stream[Int] = labelReader.labelsAsInts
-  def labelsAsVectors: Stream[DenseVector[Double]] = labelReader.labelsAsVectors
+  def labelsAsInts: LazyList[Int] = labelReader.labelsAsInts
+  def labelsAsVectors: LazyList[DenseVector[Double]] = labelReader.labelsAsVectors
 
-  def examples: Stream[(DenseVector[Double], DenseVector[Double])] = imagesAsVectors zip labelsAsVectors
+  def examples: LazyList[(DenseVector[Double], DenseVector[Double])] = imagesAsVectors zip labelsAsVectors
 
 }
 

@@ -23,11 +23,11 @@ object ParameterServer {
 class ParameterServer(dimensions: Seq[Int],
                       learningRate: Double,
                       miniBatchSize: Int) extends Actor with ActorLogging {
-  var normalDist = Gaussian(0,1)
+  var normalDist = Gaussian(0,1)(breeze.stats.distributions.RandBasis.systemSeed)
 
   var biases: BiasSeq = dimensions.tail.map { x => DenseVector.rand[Double](x,normalDist)}
-  var weights: WeightSeq = (dimensions.dropRight(1), dimensions.drop(1)).zipped map {
-    case(x,y) => DenseMatrix.rand[Double](y, x, normalDist)
+  var weights: WeightSeq = dimensions.dropRight(1).lazyZip(dimensions.drop(1)).map {
+    (x, y) => DenseMatrix.rand[Double](y, x, normalDist)
   }
 
   def receive = {

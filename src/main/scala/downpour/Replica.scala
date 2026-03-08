@@ -1,12 +1,13 @@
 package downpour
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.{DenseMatrix, DenseVector, *}
 import breeze.numerics.sigmoid
 import downpour.ParameterServer.{FetchParameters, PushGradient}
 import downpour.Replica.{GetMiniBatch, GetParameters}
 import downpour.Types.{ParameterTuple, TrainingExample, TrainingTupleVector}
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.concurrent.Await
 import akka.pattern.ask
 import akka.util.Timeout
@@ -69,7 +70,7 @@ class Replica(parameterServer: ActorRef,
         activation = sigmoid(z)
         activations = activations :+ activation
     }
-    var delta = costDerivative(activations.reverse(0), y) :* sigmoidder(zs.reverse(0))
+    var delta = costDerivative(activations.reverse(0), y) *:* sigmoidder(zs.reverse(0))
     nablaB = nablaB.reverse.patch(0, Seq(delta), 1).reverse
     val replacementW = delta * activations.reverse(1).t
     nablaW = nablaW.reverse.patch(0, Seq(replacementW), 1).reverse
@@ -77,7 +78,7 @@ class Replica(parameterServer: ActorRef,
       val index = l - 1
       val z = zs.reverse(index)
       val sp = sigmoidder(z)
-      delta = (weights.reverse(index - 1).t * delta) :* sp
+      delta = (weights.reverse(index - 1).t * delta) *:* sp
       nablaB = nablaB.reverse.patch(index, Seq(delta), 1).reverse
       val anotherW = delta * activations.reverse(index + 1).t
       nablaW = nablaW.reverse.patch(index, Seq(anotherW), 1).reverse

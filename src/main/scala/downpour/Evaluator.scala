@@ -9,6 +9,7 @@ import downpour.Evaluator.{EvaluateModel, EvaluatorDone, StartTimer}
 import downpour.Types._
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.concurrent.Await
 import akka.pattern.ask
 import akka.util.Timeout
@@ -86,8 +87,9 @@ class Evaluator(testData: TrainingTupleVector,
     case EvaluatorDone =>
       if (doneCounter + 1 == parallelFactor) {
         log.info("Evaluator writing results")
-        val outputFile = new File("/tmp/netoutput/output.csv")
-        outputFile.createNewFile()
+        val outputDir = new File("/tmp/netoutput")
+        if (!outputDir.exists()) outputDir.mkdirs()
+        val outputFile = new File(outputDir, "output.csv")
         printToFile(outputFile) { p =>
           results.foreach(tuple => p.println(tuple.productIterator.mkString(",")))
         }
